@@ -16,7 +16,7 @@ def parse_args():
     parser.add_argument('--end', type=float, default=sys.float_info.max)
     parser.add_argument('--amp-threshold', type=float, default=20)
     parser.add_argument('--detect-peak-min-freq', type=float, default=100)
-    parser.add_argument('--detect-peak-max-freq', type=float, default=3000)
+    parser.add_argument('--detect-peak-max-freq', type=float, default=6000)
     args = parser.parse_args()
     return args
 
@@ -27,8 +27,9 @@ def main(args):
     window = 4096
     amplist = []
     timelist = []
+    peaklist = []
     freqs = fftpack.fftfreq(window, d=1.0/source.frame_rate)
-    dimension = int(freqs.shape[0] / 16)
+    dimension = int(freqs.shape[0] / 8)
     ptime = []
     pfreq = []
     pamp = []
@@ -41,33 +42,45 @@ def main(args):
         if time < args.start or time > args.end:
             continue
         end = start + window * source.channels
+
+        # FFT
         x = data[start:end:source.channels]
         x = hann_window * x
         spectrum = fftpack.fft(x)
-        spectrum = np.abs(spectrum)
-        amp = spectrum / window * 2
-        amp = acf * amp
 
+        # Cepstrum
+        spectrum_db = np.log10(spectrum)
+        cepstrum_db = np.real(fftpack.ifft(spectrum_db))
+        cepstrum_index = 50
+        cepstrum_db[cepstrum_index:len(cepstrum_db)-cepstrum_index] = 0
+        cepstrum_db_low = fftpack.fft(cepstrum_db)
+        peak_indecies = signal.argrelmax(cepstrum_db_low, order=5)
+        peak_indecies = [x for x in peak_indecies[0] if freqs[x] > args.detect_peak_min_freq and freqs[x] < args.detect_peak_max_freq]
+
+        # 
+        spectrum_abs = np.abs(spectrum)
+        amp = spectrum_abs / window * 2
+        amp = acf * amp
         maxamp = max(amp)
         amp_splited = amp[:dimension]
         timelist.append(time)
         amplist.append(amp_splited)
-        peak = signal.argrelmax(amp_splited, order=5)
-        peak_indecies = [x for x in peak[0] if (freqs[x] > args.detect_peak_min_freq and freqs[x] < args.detect_peak_max_freq and amp_splited[x] > args.amp_threshold)]
-        peak_freqs = [(freqs[x], amp_splited[x]) for x in peak_indecies]
+        peak_freqs = (time, [(freqs[x], amp[x]) for x in peak_indecies[:int(len(peak_indecies)/2)]])
+        peaklist.append(peak_freqs)
         for x in peak_indecies:
             ptime.append(time)
             pfreq.append(freqs[x])
-            pamp.append(math.log10(amp_splited[x]))
-
+            pamp.append(np.log10(amp[x]))
 
     if args.plot:
         freqlist = np.array([np.array(freqs[:dimension])]*len(amplist))
         timelist = np.array([np.array([t] * dimension) for t in timelist])
-        amplist = np.array(amplist)
-        amplist = np.array(amplist)
+        pltamplist = np.log10(np.array(amplist))
+        print(freqlist.ndim, freqlist.shape, freqlist.size)
+        print(timelist.ndim, timelist.shape, timelist.size)
+        print(pltamplist.ndim, pltamplist.shape, pltamplist.size)
         fig, ax = plt.subplots()
-        heatmap = ax.pcolormesh(timelist, freqlist, np.log10(amplist), cmap='coolwarm')
+        heatmap = ax.pcolormesh(timelist, freqlist, pltamplist, cmap='coolwarm')
         fig.colorbar(heatmap, ax=ax)
         scatter = ax.scatter(ptime, pfreq, s=1, c="black")
         plt.show()
