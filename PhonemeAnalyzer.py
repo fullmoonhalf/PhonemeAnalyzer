@@ -11,7 +11,8 @@ from pydub import AudioSegment
 def parse_args():
     parser = argparse.ArgumentParser(description='test')
     parser.add_argument('--input', type=str, required=True)
-    parser.add_argument('--plot', action="store_true")
+    parser.add_argument('--plot-formant', action="store_true")
+    parser.add_argument('--plot-spectrum', action="store_true")
     parser.add_argument('--start', type=float, default=0)
     parser.add_argument('--end', type=float, default=sys.float_info.max)
     parser.add_argument('--detect-peak-min-freq', type=float, default=100)
@@ -71,7 +72,18 @@ def main(args):
             pfreq.append(freqs[x])
             pamp.append(np.log10(amp[x]))
 
-    if args.plot:
+    if args.plot_formant:
+        forumant_1st = []
+        forumant_2nd = []
+        for time, frame in peaklist:
+            if len(frame) >= 2:
+                forumant_1st.append(frame[0][0])
+                forumant_2nd.append(frame[1][0])
+        plt.scatter(forumant_1st, forumant_2nd, s=1, c="black")
+        plt.show()
+    
+
+    if args.plot_spectrum:
         freqlist = np.array([np.array(freqs[:dimension])]*len(amplist))
         timelist = np.array([np.array([t] * dimension) for t in timelist])
         pltamplist = np.log10(np.array(amplist))
