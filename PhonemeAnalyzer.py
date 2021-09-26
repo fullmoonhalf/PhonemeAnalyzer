@@ -14,7 +14,6 @@ def parse_args():
     parser.add_argument('--plot', action="store_true")
     parser.add_argument('--start', type=float, default=0)
     parser.add_argument('--end', type=float, default=sys.float_info.max)
-    parser.add_argument('--amp-threshold', type=float, default=20)
     parser.add_argument('--detect-peak-min-freq', type=float, default=100)
     parser.add_argument('--detect-peak-max-freq', type=float, default=6000)
     args = parser.parse_args()
@@ -76,14 +75,12 @@ def main(args):
         freqlist = np.array([np.array(freqs[:dimension])]*len(amplist))
         timelist = np.array([np.array([t] * dimension) for t in timelist])
         pltamplist = np.log10(np.array(amplist))
-        print(freqlist.ndim, freqlist.shape, freqlist.size)
-        print(timelist.ndim, timelist.shape, timelist.size)
-        print(pltamplist.ndim, pltamplist.shape, pltamplist.size)
         fig, ax = plt.subplots()
         heatmap = ax.pcolormesh(timelist, freqlist, pltamplist, cmap='coolwarm')
         fig.colorbar(heatmap, ax=ax)
         scatter = ax.scatter(ptime, pfreq, s=1, c="black")
         plt.show()
+
     return 0
 
 
