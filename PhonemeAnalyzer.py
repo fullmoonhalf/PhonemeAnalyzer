@@ -2,6 +2,7 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import sys
 from scipy import fftpack
 from scipy import signal
 from pydub import AudioSegment
@@ -10,7 +11,9 @@ from pydub import AudioSegment
 def parse_args():
     parser = argparse.ArgumentParser(description='test')
     parser.add_argument('--input', type=str, required=True)
-    parser.add_argument('--plot',   action="store_true")
+    parser.add_argument('--plot', action="store_true")
+    parser.add_argument('--start', type=float, default=0)
+    parser.add_argument('--end', type=float, default=sys.float_info.max)
     args = parser.parse_args()
     return args
 
@@ -31,21 +34,22 @@ def main(args):
 
     for start in range(0, len(data)-window*source.channels, int(window*source.channels/8)):
         time = start / (source.channels * source.frame_rate)
-        if time > 6.0 and time < 8.0:
-            end = start + window * source.channels
-            x = data[start:end:source.channels]
-            x = hann_window * x
-            spectrum = fftpack.fft(x)
-            spectrum = spectrum[:dimension]
-            spabs = np.abs(spectrum)
-            timelist.append(time)
-            amplist.append(spabs)
-            peak = signal.argrelmax(spabs, order=5)
-            peak_freqs = [x for x in peak[0] if (freqs[x] > 100 and freqs[x] < 3000)]
-            for x in peak_freqs:
-                ptime.append(time)
-                pfreq.append(freqs[x])
-                pamp.append(math.log10(spabs[x]))
+        if time < args.start or time > args.end:
+            continue
+        end = start + window * source.channels
+        x = data[start:end:source.channels]
+        x = hann_window * x
+        spectrum = fftpack.fft(x)
+        spectrum = spectrum[:dimension]
+        spabs = np.abs(spectrum)
+        timelist.append(time)
+        amplist.append(spabs)
+        peak = signal.argrelmax(spabs, order=5)
+        peak_freqs = [x for x in peak[0] if (freqs[x] > 100 and freqs[x] < 3000)]
+        for x in peak_freqs:
+            ptime.append(time)
+            pfreq.append(freqs[x])
+            pamp.append(math.log10(spabs[x]))
 
     freqlist = np.array([np.array(freqs[:dimension])]*len(amplist))
     timelist = np.array([np.array([t] * dimension) for t in timelist])
